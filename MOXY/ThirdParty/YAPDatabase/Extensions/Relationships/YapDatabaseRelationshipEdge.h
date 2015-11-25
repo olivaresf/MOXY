@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 /**
  * Welcome to YapDatabase!
  *
@@ -16,21 +18,19 @@
  * https://github.com/yapstudios/YapDatabase/wiki/Relationships
 **/
 
-enum {
-	// notify only
-	YDB_NotifyIfSourceDeleted      = 1 << 0,
-	YDB_NotifyIfDestinationDeleted = 1 << 1,
-	
-	// one-to-one
-	YDB_DeleteSourceIfDestinationDeleted = 1 << 2,
-	YDB_DeleteDestinationIfSourceDeleted = 1 << 3,
-	
-	// one-to-many & many-to-many
-	YDB_DeleteSourceIfAllDestinationsDeleted = 1 << 4,
-	YDB_DeleteDestinationIfAllSourcesDeleted = 1 << 5,
+typedef NS_OPTIONS(uint16_t, YDB_NodeDeleteRules) {
+    // notify only
+    YDB_NotifyIfSourceDeleted      = 1 << 0,
+    YDB_NotifyIfDestinationDeleted = 1 << 1,
+    
+    // one-to-one
+    YDB_DeleteSourceIfDestinationDeleted = 1 << 2,
+    YDB_DeleteDestinationIfSourceDeleted = 1 << 3,
+    
+    // one-to-many & many-to-many
+    YDB_DeleteSourceIfAllDestinationsDeleted = 1 << 4,
+    YDB_DeleteDestinationIfAllSourcesDeleted = 1 << 5,
 };
-typedef uint16_t YDB_NodeDeleteRules;
-
 
 @interface YapDatabaseRelationshipEdge : NSObject <NSCoding, NSCopying>
 
@@ -47,7 +47,7 @@ typedef uint16_t YDB_NodeDeleteRules;
 **/
 + (instancetype)edgeWithName:(NSString *)name
               destinationKey:(NSString *)destinationKey
-                  collection:(NSString *)destinationCollection
+                  collection:(nullable NSString *)destinationCollection
              nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
 /**
@@ -81,9 +81,9 @@ typedef uint16_t YDB_NodeDeleteRules;
 **/
 + (instancetype)edgeWithName:(NSString *)name
                    sourceKey:(NSString *)sourceKey
-                  collection:(NSString *)sourceCollection
+                  collection:(nullable NSString *)sourceCollection
               destinationKey:(NSString *)destinationKey
-                  collection:(NSString *)destinationCollection
+                  collection:(nullable NSString *)destinationCollection
              nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
 /**
@@ -102,7 +102,7 @@ typedef uint16_t YDB_NodeDeleteRules;
 **/
 + (instancetype)edgeWithName:(NSString *)name
                    sourceKey:(NSString *)sourceKey
-                  collection:(NSString *)sourceCollection
+                  collection:(nullable NSString *)sourceCollection
          destinationFilePath:(NSString *)destinationFilePath
              nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
@@ -113,7 +113,7 @@ typedef uint16_t YDB_NodeDeleteRules;
 **/
 - (id)initWithName:(NSString *)name
     destinationKey:(NSString *)key
-        collection:(NSString *)collection
+        collection:(nullable NSString *)collection
    nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
 /**
@@ -127,16 +127,16 @@ typedef uint16_t YDB_NodeDeleteRules;
 **/
 - (id)initWithName:(NSString *)name
          sourceKey:(NSString *)sourceKey
-        collection:(NSString *)sourceCollection
+        collection:(nullable NSString *)sourceCollection
     destinationKey:(NSString *)destinationKey
-        collection:(NSString *)destinationCollection
+        collection:(nullable NSString *)destinationCollection
    nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
 /**
  * For documentation @see edgeWithName:sourceKey:collection:destinationFilePath:nodeDeleteRules:
 **/
 - (id)initWithName:(NSString *)name sourceKey:(NSString *)sourceKey
-                                   collection:(NSString *)sourceCollection
+                                   collection:(nullable NSString *)sourceCollection
                           destinationFilePath:(NSString *)destinationFilePath
                               nodeDeleteRules:(YDB_NodeDeleteRules)rules;
 
@@ -161,3 +161,5 @@ typedef uint16_t YDB_NodeDeleteRules;
 @property (nonatomic, assign, readonly) BOOL isManualEdge;
 
 @end
+
+NS_ASSUME_NONNULL_END

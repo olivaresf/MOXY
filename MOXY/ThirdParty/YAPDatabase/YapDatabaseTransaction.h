@@ -1,6 +1,9 @@
 #import <Foundation/Foundation.h>
 
 @class YapDatabaseConnection;
+@class YapDatabaseExtensionTransaction;
+
+NS_ASSUME_NONNULL_BEGIN
 
 /**
  * Welcome to YapDatabase!
@@ -69,7 +72,7 @@
  * Keep in mind that transactions are short lived objects.
  * Each transaction is a new/different transaction object.
 **/
-@property (nonatomic, strong, readwrite) id userInfo;
+@property (nonatomic, strong, readwrite, nullable) id userInfo;
 
 #pragma mark Count
 
@@ -83,7 +86,7 @@
  * Returns the total number of keys in the given collection.
  * Returns zero if the collection doesn't exist (or all key/object pairs from the collection have been removed).
 **/
-- (NSUInteger)numberOfKeysInCollection:(NSString *)collection;
+- (NSUInteger)numberOfKeysInCollection:(nullable NSString *)collection;
 
 /**
  * Returns the total number of key/object pairs in the entire database (including all collections).
@@ -94,13 +97,19 @@
 
 /**
  * Returns a list of all collection names.
+ * 
+ * If the list of collections is really big, it may be more efficient to enumerate them instead.
+ * @see enumerateCollectionsUsingBlock:
 **/
-- (NSArray *)allCollections;
+- (NSArray<NSString *> *)allCollections;
 
 /**
  * Returns a list of all keys in the given collection.
+ * 
+ * If the list of keys is really big, it may be more efficient to enumerate them instead.
+ * @see enumerateKeysInCollection:usingBlock:
 **/
-- (NSArray *)allKeysInCollection:(NSString *)collection;
+- (NSArray<NSString *> *)allKeysInCollection:(nullable NSString *)collection;
 
 #pragma mark Object & Metadata
 
@@ -108,25 +117,28 @@
  * Object access.
  * Objects are automatically deserialized using database's configured deserializer.
 **/
-- (id)objectForKey:(NSString *)key inCollection:(NSString *)collection;
+- (nullable id)objectForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Returns whether or not the given key/collection exists in the database.
 **/
-- (BOOL)hasObjectForKey:(NSString *)key inCollection:(NSString *)collection;
+- (BOOL)hasObjectForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Provides access to both object and metadata in a single call.
  *
  * @return YES if the key exists in the database. NO otherwise, in which case both object and metadata will be nil.
 **/
-- (BOOL)getObject:(id *)objectPtr metadata:(id *)metadataPtr forKey:(NSString *)key inCollection:(NSString *)collection;
+- (BOOL)getObject:(__nullable id * __nullable)objectPtr
+         metadata:(__nullable id * __nullable)metadataPtr
+           forKey:(NSString *)key
+     inCollection:(nullable NSString *)collection;
 
 /**
  * Provides access to the metadata.
  * This fetches directly from the metadata dictionary stored in memory, and thus never hits the disk.
 **/
-- (id)metadataForKey:(NSString *)key inCollection:(NSString *)collection;
+- (id)metadataForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 #pragma mark Primitive
 
@@ -139,7 +151,7 @@
  * 
  * @see objectForKey:inCollection:
 **/
-- (NSData *)serializedObjectForKey:(NSString *)key inCollection:(NSString *)collection;
+- (NSData *)serializedObjectForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Primitive access.
@@ -150,7 +162,7 @@
  *
  * @see metadataForKey:inCollection:
 **/
-- (NSData *)serializedMetadataForKey:(NSString *)key inCollection:(NSString *)collection;
+- (NSData *)serializedMetadataForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Primitive access.
@@ -161,10 +173,10 @@
  *
  * @see getObject:metadata:forKey:inCollection:
 **/
-- (BOOL)getSerializedObject:(NSData **)serializedObjectPtr
-         serializedMetadata:(NSData **)serializedMetadataPtr
+- (BOOL)getSerializedObject:(NSData * __nullable * __nullable)serializedObjectPtr
+         serializedMetadata:(NSData * __nullable * __nullable)serializedMetadataPtr
                      forKey:(NSString *)key
-               inCollection:(NSString *)collection;
+               inCollection:(nullable NSString *)collection;
 
 #pragma mark Enumerate
 
@@ -192,7 +204,7 @@
  * This uses a "SELECT key FROM database WHERE collection = ?" operation,
  * and then steps over the results invoking the given block handler.
 **/
-- (void)enumerateKeysInCollection:(NSString *)collection
+- (void)enumerateKeysInCollection:(nullable NSString *)collection
                        usingBlock:(void (^)(NSString *key, BOOL *stop))block;
 
 /**
@@ -204,64 +216,6 @@
 - (void)enumerateKeysInAllCollectionsUsingBlock:(void (^)(NSString *collection, NSString *key, BOOL *stop))block;
 
 /**
- * Fast enumeration over all keys and associated metadata in the given collection.
- * 
- * This uses a "SELECT key, metadata FROM database WHERE collection = ?" operation and steps over the results.
- * 
- * If you only need to enumerate over certain items (e.g. keys with a particular prefix),
- * consider using the alternative version below which provides a filter,
- * allowing you to skip the deserialization step for those items you're not interested in.
- * 
- * Keep in mind that you cannot modify the collection mid-enumeration (just like any other kind of enumeration).
-**/
-- (void)enumerateKeysAndMetadataInCollection:(NSString *)collection
-                                  usingBlock:(void (^)(NSString *key, id metadata, BOOL *stop))block;
-
-/**
- * Fast enumeration over all keys and associated metadata in the given collection.
- *
- * From the filter block, simply return YES if you'd like the block handler to be invoked for the given key.
- * If the filter block returns NO, then the block handler is skipped for the given key,
- * which avoids the cost associated with deserializing the object.
- * 
- * Keep in mind that you cannot modify the collection mid-enumeration (just like any other kind of enumeration).
-**/
-- (void)enumerateKeysAndMetadataInCollection:(NSString *)collection
-                                  usingBlock:(void (^)(NSString *key, id metadata, BOOL *stop))block
-                                  withFilter:(BOOL (^)(NSString *key))filter;
-
-
-
-/**
- * Fast enumeration over all key/metadata pairs in all collections.
- * 
- * This uses a "SELECT metadata FROM database ORDER BY collection ASC" operation, and steps over the results.
- * 
- * If you only need to enumerate over certain objects (e.g. keys with a particular prefix),
- * consider using the alternative version below which provides a filter,
- * allowing you to skip the deserialization step for those objects you're not interested in.
- * 
- * Keep in mind that you cannot modify the database mid-enumeration (just like any other kind of enumeration).
-**/
-- (void)enumerateKeysAndMetadataInAllCollectionsUsingBlock:
-                                        (void (^)(NSString *collection, NSString *key, id metadata, BOOL *stop))block;
-
-/**
- * Fast enumeration over all key/metadata pairs in all collections.
- *
- * This uses a "SELECT metadata FROM database ORDER BY collection ASC" operation and steps over the results.
- * 
- * From the filter block, simply return YES if you'd like the block handler to be invoked for the given key.
- * If the filter block returns NO, then the block handler is skipped for the given key,
- * which avoids the cost associated with deserializing the object.
- *
- * Keep in mind that you cannot modify the database mid-enumeration (just like any other kind of enumeration).
- **/
-- (void)enumerateKeysAndMetadataInAllCollectionsUsingBlock:
-                                        (void (^)(NSString *collection, NSString *key, id metadata, BOOL *stop))block
-                             withFilter:(BOOL (^)(NSString *collection, NSString *key))filter;
-
-/**
  * Fast enumeration over all objects in the database.
  *
  * This uses a "SELECT key, object from database WHERE collection = ?" operation, and then steps over the results,
@@ -271,7 +225,7 @@
  * consider using the alternative version below which provides a filter,
  * allowing you to skip the serialization step for those objects you're not interested in.
 **/
-- (void)enumerateKeysAndObjectsInCollection:(NSString *)collection
+- (void)enumerateKeysAndObjectsInCollection:(nullable NSString *)collection
                                  usingBlock:(void (^)(NSString *key, id object, BOOL *stop))block;
 
 /**
@@ -282,9 +236,9 @@
  * If the filter block returns NO, then the block handler is skipped for the given key,
  * which avoids the cost associated with deserializing the object.
 **/
-- (void)enumerateKeysAndObjectsInCollection:(NSString *)collection
+- (void)enumerateKeysAndObjectsInCollection:(nullable NSString *)collection
                                  usingBlock:(void (^)(NSString *key, id object, BOOL *stop))block
-                                 withFilter:(BOOL (^)(NSString *key))filter;
+                                 withFilter:(nullable BOOL (^)(NSString *key))filter;
 
 /**
  * Enumerates all key/object pairs in all collections.
@@ -312,7 +266,65 @@
 **/
 - (void)enumerateKeysAndObjectsInAllCollectionsUsingBlock:
                                             (void (^)(NSString *collection, NSString *key, id object, BOOL *stop))block
-                                 withFilter:(BOOL (^)(NSString *collection, NSString *key))filter;
+                                 withFilter:(nullable BOOL (^)(NSString *collection, NSString *key))filter;
+
+/**
+ * Fast enumeration over all keys and associated metadata in the given collection.
+ * 
+ * This uses a "SELECT key, metadata FROM database WHERE collection = ?" operation and steps over the results.
+ * 
+ * If you only need to enumerate over certain items (e.g. keys with a particular prefix),
+ * consider using the alternative version below which provides a filter,
+ * allowing you to skip the deserialization step for those items you're not interested in.
+ * 
+ * Keep in mind that you cannot modify the collection mid-enumeration (just like any other kind of enumeration).
+**/
+- (void)enumerateKeysAndMetadataInCollection:(nullable NSString *)collection
+                                  usingBlock:(void (^)(NSString *key, __nullable id metadata, BOOL *stop))block;
+
+/**
+ * Fast enumeration over all keys and associated metadata in the given collection.
+ *
+ * From the filter block, simply return YES if you'd like the block handler to be invoked for the given key.
+ * If the filter block returns NO, then the block handler is skipped for the given key,
+ * which avoids the cost associated with deserializing the object.
+ * 
+ * Keep in mind that you cannot modify the collection mid-enumeration (just like any other kind of enumeration).
+**/
+- (void)enumerateKeysAndMetadataInCollection:(nullable NSString *)collection
+                                  usingBlock:(void (^)(NSString *key, __nullable id metadata, BOOL *stop))block
+                                  withFilter:(nullable BOOL (^)(NSString *key))filter;
+
+
+
+/**
+ * Fast enumeration over all key/metadata pairs in all collections.
+ * 
+ * This uses a "SELECT metadata FROM database ORDER BY collection ASC" operation, and steps over the results.
+ * 
+ * If you only need to enumerate over certain objects (e.g. keys with a particular prefix),
+ * consider using the alternative version below which provides a filter,
+ * allowing you to skip the deserialization step for those objects you're not interested in.
+ * 
+ * Keep in mind that you cannot modify the database mid-enumeration (just like any other kind of enumeration).
+**/
+- (void)enumerateKeysAndMetadataInAllCollectionsUsingBlock:
+                            (void (^)(NSString *collection, NSString *key, __nullable id metadata, BOOL *stop))block;
+
+/**
+ * Fast enumeration over all key/metadata pairs in all collections.
+ *
+ * This uses a "SELECT metadata FROM database ORDER BY collection ASC" operation and steps over the results.
+ * 
+ * From the filter block, simply return YES if you'd like the block handler to be invoked for the given key.
+ * If the filter block returns NO, then the block handler is skipped for the given key,
+ * which avoids the cost associated with deserializing the object.
+ *
+ * Keep in mind that you cannot modify the database mid-enumeration (just like any other kind of enumeration).
+ **/
+- (void)enumerateKeysAndMetadataInAllCollectionsUsingBlock:
+                            (void (^)(NSString *collection, NSString *key, __nullable id metadata, BOOL *stop))block
+                 withFilter:(nullable BOOL (^)(NSString *collection, NSString *key))filter;
 
 /**
  * Fast enumeration over all rows in the database.
@@ -324,8 +336,8 @@
  * consider using the alternative version below which provides a filter,
  * allowing you to skip the serialization step for those rows you're not interested in.
 **/
-- (void)enumerateRowsInCollection:(NSString *)collection
-                       usingBlock:(void (^)(NSString *key, id object, id metadata, BOOL *stop))block;
+- (void)enumerateRowsInCollection:(nullable NSString *)collection
+                       usingBlock:(void (^)(NSString *key, id object, __nullable id metadata, BOOL *stop))block;
 
 /**
  * Fast enumeration over rows in the database for which you're interested in.
@@ -335,9 +347,9 @@
  * If the filter block returns NO, then the block handler is skipped for the given key,
  * which avoids the cost associated with deserializing the object & metadata.
 **/
-- (void)enumerateRowsInCollection:(NSString *)collection
-                       usingBlock:(void (^)(NSString *key, id object, id metadata, BOOL *stop))block
-                       withFilter:(BOOL (^)(NSString *key))filter;
+- (void)enumerateRowsInCollection:(nullable NSString *)collection
+                       usingBlock:(void (^)(NSString *key, id object, __nullable id metadata, BOOL *stop))block
+                       withFilter:(nullable BOOL (^)(NSString *key))filter;
 
 /**
  * Enumerates all rows in all collections.
@@ -350,7 +362,7 @@
  * allowing you to skip the serialization step for those objects you're not interested in.
 **/
 - (void)enumerateRowsInAllCollectionsUsingBlock:
-                            (void (^)(NSString *collection, NSString *key, id object, id metadata, BOOL *stop))block;
+                    (void (^)(NSString *collection, NSString *key, id object, __nullable id metadata, BOOL *stop))block;
 
 /**
  * Enumerates all rows in all collections.
@@ -364,24 +376,8 @@
  * which avoids the cost associated with deserializing the object.
 **/
 - (void)enumerateRowsInAllCollectionsUsingBlock:
-                            (void (^)(NSString *collection, NSString *key, id object, id metadata, BOOL *stop))block
-                 withFilter:(BOOL (^)(NSString *collection, NSString *key))filter;
-
-/**
- * Enumerates over the given list of keys (unordered).
- *
- * This method is faster than fetching individual items as it optimizes cache access.
- * That is, it will first enumerate over items in the cache and then fetch items from the database,
- * thus optimizing the cache and reducing query size.
- *
- * If any keys are missing from the database, the 'metadata' parameter will be nil.
- *
- * IMPORTANT:
- * Due to cache optimizations, the items may not be enumerated in the same order as the 'keys' parameter.
-**/
-- (void)enumerateMetadataForKeys:(NSArray *)keys
-                    inCollection:(NSString *)collection
-             unorderedUsingBlock:(void (^)(NSUInteger keyIndex, id metadata, BOOL *stop))block;
+                    (void (^)(NSString *collection, NSString *key, id object, __nullable id metadata, BOOL *stop))block
+         withFilter:(nullable BOOL (^)(NSString *collection, NSString *key))filter;
 
 /**
  * Enumerates over the given list of keys (unordered).
@@ -395,9 +391,25 @@
  * IMPORTANT:
  * Due to cache optimizations, the items may not be enumerated in the same order as the 'keys' parameter.
 **/
-- (void)enumerateObjectsForKeys:(NSArray *)keys
-                   inCollection:(NSString *)collection
+- (void)enumerateObjectsForKeys:(NSArray<NSString *> *)keys
+                   inCollection:(nullable NSString *)collection
             unorderedUsingBlock:(void (^)(NSUInteger keyIndex, id object, BOOL *stop))block;
+
+/**
+ * Enumerates over the given list of keys (unordered).
+ *
+ * This method is faster than fetching individual items as it optimizes cache access.
+ * That is, it will first enumerate over items in the cache and then fetch items from the database,
+ * thus optimizing the cache and reducing query size.
+ *
+ * If any keys are missing from the database, the 'metadata' parameter will be nil.
+ *
+ * IMPORTANT:
+ * Due to cache optimizations, the items may not be enumerated in the same order as the 'keys' parameter.
+**/
+- (void)enumerateMetadataForKeys:(NSArray<NSString *> *)keys
+                    inCollection:(nullable NSString *)collection
+             unorderedUsingBlock:(void (^)(NSUInteger keyIndex, __nullable id metadata, BOOL *stop))block;
 
 /**
  * Enumerates over the given list of keys (unordered).
@@ -411,9 +423,9 @@
  * IMPORTANT:
  * Due to cache optimizations, the items may not be enumerated in the same order as the 'keys' parameter.
 **/
-- (void)enumerateRowsForKeys:(NSArray *)keys
-                inCollection:(NSString *)collection
-         unorderedUsingBlock:(void (^)(NSUInteger keyIndex, id object, id metadata, BOOL *stop))block;
+- (void)enumerateRowsForKeys:(NSArray<NSString *> *)keys
+                inCollection:(nullable NSString *)collection
+         unorderedUsingBlock:(void (^)(NSUInteger keyIndex, __nullable id object, __nullable id metadata, BOOL *stop))block;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark Extensions
@@ -432,9 +444,10 @@
  *
  * @see [YapDatabase registerExtension:withName:]
 **/
-- (id)extension:(NSString *)extensionName;
-- (id)ext:(NSString *)extensionName; // <-- Shorthand (same as extension: method)
+- (nullable __kindof YapDatabaseExtensionTransaction *)extension:(NSString *)extensionName;
+- (nullable __kindof YapDatabaseExtensionTransaction *)ext:(NSString *)extensionName; // <-- Shorthand (same as extension: method)
 
+NS_ASSUME_NONNULL_END
 @end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -442,6 +455,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 @interface YapDatabaseReadWriteTransaction : YapDatabaseReadTransaction
+NS_ASSUME_NONNULL_BEGIN
 
 /**
  * Under normal circumstances, when a read-write transaction block completes,
@@ -494,7 +508,7 @@
  *   The <collection, key> tuple is used to uniquely identify the row in the database.
  *   If a nil collection is passed, then the collection is implicitly the empty string (@"").
 **/
-- (void)setObject:(id)object forKey:(NSString *)key inCollection:(NSString *)collection;
+- (void)setObject:(nullable id)object forKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Sets the object & metadata for the given key/collection.
@@ -521,7 +535,10 @@
  *   The metadata is optional. You can pass nil for the metadata is unneeded.
  *   If non-nil then the metadata is also written to the database (metadata is also persistent).
 **/
-- (void)setObject:(id)object forKey:(NSString *)key inCollection:(NSString *)collection withMetadata:(id)metadata;
+- (void)setObject:(nullable id)object
+           forKey:(NSString *)key
+     inCollection:(nullable NSString *)collection
+     withMetadata:(nullable id)metadata;
 
 /**
  * Sets the object & metadata for the given key/collection.
@@ -568,10 +585,11 @@
  * The preSerializedObject is only used if object is non-nil.
  * The preSerializedMetadata is only used if metadata is non-nil.
 **/
-- (void)setObject:(id)object forKey:(NSString *)key inCollection:(NSString *)collection
-                                                    withMetadata:(id)metadata
-                                                serializedObject:(NSData *)preSerializedObject
-                                              serializedMetadata:(NSData *)preSerializedMetadata;
+- (void)setObject:(nullable id)object forKey:(NSString *)key
+                                inCollection:(nullable NSString *)collection
+                                withMetadata:(nullable id)metadata
+                            serializedObject:(nullable NSData *)preSerializedObject
+                          serializedMetadata:(nullable NSData *)preSerializedMetadata;
 
 /**
  * If a row with the given key/collection exists, then replaces the object for that row with the new value.
@@ -595,7 +613,7 @@
  *   The <collection, key> tuple is used to uniquely identify the row in the database.
  *   If a nil collection is passed, then the collection is implicitly the empty string (@"").
 **/
-- (void)replaceObject:(id)object forKey:(NSString *)key inCollection:(NSString *)collection;
+- (void)replaceObject:(nullable id)object forKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * If a row with the given key/collection exists, then replaces the object for that row with the new value.
@@ -630,8 +648,10 @@
  *   It is assumed that preSerializedObject is equal to what we would get if we ran the object through
  *   the database's configured objectSerializer.
 **/
-- (void)replaceObject:(id)object forKey:(NSString *)key inCollection:(NSString *)collection
-                                                withSerializedObject:(NSData *)preSerializedObject;
+- (void)replaceObject:(nullable id)object
+               forKey:(NSString *)key
+         inCollection:(nullable NSString *)collection
+ withSerializedObject:(nullable NSData *)preSerializedObject;
 
 /**
  * If a row with the given key/collection exists, then replaces the metadata for that row with the new value.
@@ -655,7 +675,7 @@
  *   The <collection, key> tuple is used to uniquely identify the row in the database.
  *   If a nil collection is passed, then the collection is implicitly the empty string (@"").
 **/
-- (void)replaceMetadata:(id)metadata forKey:(NSString *)key inCollection:(NSString *)collection;
+- (void)replaceMetadata:(nullable id)metadata forKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * If a row with the given key/collection exists, then replaces the metadata for that row with the new value.
@@ -690,8 +710,10 @@
  *   It is assumed that preSerializedMetadata is equal to what we would get if we ran the metadata through
  *   the database's configured metadataSerializer.
 **/
-- (void)replaceMetadata:(id)metadata forKey:(NSString *)key inCollection:(NSString *)collection
-                                                  withSerializedMetadata:(NSData *)preSerializedMetadata;
+- (void)replaceMetadata:(nullable id)metadata
+                 forKey:(NSString *)key
+           inCollection:(nullable NSString *)collection
+ withSerializedMetadata:(nullable NSData *)preSerializedMetadata;
 
 #pragma mark Touch
 
@@ -715,20 +737,25 @@
  * However, it will mark the object as "updated" within the YapDatabaseModified notification,
  * so any UI components listening for changes will see this object as updated, and can update as appropriate.
  *
- * The touchObjectForKey:inCollection: method is similar to calling setObject:forKey:inCollection:withMetadata:,
- * and passing the object & metadata that already exists for the key. But without the overhead of fetching the items,
- * or re-writing the items to disk.
+ * - touchObjectForKey:inCollection:
+ *   Similar to calling replaceObject:forKey:inCollection: and passing the object that already exists.
+ *   But without the overhead of fetching the object, or re-writing it to disk.
  *
- * The touchMetadataForKey: method is similar to calling replaceMetadata:forKey:,
- * and passing the metadata that already exists for the key. But without the overhead of fetching the metadata,
- * or re-writing the metadata to disk.
+ * - touchMetadataForKey:inCollection:
+ *   Similar to calling replaceMetadata:forKey:inCollection: and passing the metadata that already exists.
+ *   But without the overhead of fetching the metadata, or re-writing it to disk.
  * 
- * Note: It is safe to touch objects during enumeration.
+ * - touchRowForKey:inCollection:
+ *   Similar to calling setObject:forKey:inCollection:withMetadata: and passing the object & metadata the already exist.
+ *   But without the overhead of fetching the items, or re-writing them to disk.
+ *
+ * Note: It is safe to touch items during enumeration.
  * Normally, altering the database while enumerating it will result in an exception (just like altering an array
- * while enumerating it). However, it's safe to touch objects during enumeration.
+ * while enumerating it). However, it's safe to touch items during enumeration.
 **/
-- (void)touchObjectForKey:(NSString *)key inCollection:(NSString *)collection;
-- (void)touchMetadataForKey:(NSString *)key inCollection:(NSString *)collection;
+- (void)touchObjectForKey:(NSString *)key inCollection:(nullable NSString *)collection;
+- (void)touchMetadataForKey:(NSString *)key inCollection:(nullable NSString *)collection;
+- (void)touchRowForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 #pragma mark Remove
 
@@ -738,18 +765,18 @@
  * This method is automatically called if you invoke
  * setObject:forKey:collection: and pass a nil object.
 **/
-- (void)removeObjectForKey:(NSString *)key inCollection:(NSString *)collection;
+- (void)removeObjectForKey:(NSString *)key inCollection:(nullable NSString *)collection;
 
 /**
  * Deletes the database rows with the given keys in the given collection.
 **/
-- (void)removeObjectsForKeys:(NSArray *)keys inCollection:(NSString *)collection;
+- (void)removeObjectsForKeys:(NSArray<NSString *> *)keys inCollection:(nullable NSString *)collection;
 
 /**
  * Deletes every key/object pair from the given collection.
  * No trace of the collection will remain afterwards.
 **/
-- (void)removeAllObjectsInCollection:(NSString *)collection;
+- (void)removeAllObjectsInCollection:(nullable NSString *)collection;
 
 /**
  * Removes every key/object pair in the entire database (from all collections).
@@ -757,3 +784,5 @@
 - (void)removeAllObjectsInAllCollections;
 
 @end
+
+NS_ASSUME_NONNULL_END

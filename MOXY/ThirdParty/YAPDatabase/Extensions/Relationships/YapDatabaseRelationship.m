@@ -19,6 +19,7 @@
 #else
   static const int ydbLogLevel = YDB_LOG_LEVEL_WARN;
 #endif
+#pragma unused(ydbLogLevel)
 
 
 @implementation YapDatabaseRelationship
@@ -33,7 +34,7 @@
 **/
 + (void)dropTablesForRegisteredName:(NSString *)registeredName
                     withTransaction:(YapDatabaseReadWriteTransaction *)transaction
-                      wasPersistent:(BOOL)wasPersistent
+                      wasPersistent:(BOOL __unused)wasPersistent
 {
 	sqlite3 *db = transaction->connection->db;
 	
@@ -90,13 +91,13 @@
  * This method is called during the view registration process to enusre the extension supports
  * the database configuration.
 **/
-- (BOOL)supportsDatabase:(YapDatabase *)database withRegisteredExtensions:(NSDictionary *)registeredExtensions
+- (BOOL)supportsDatabase:(YapDatabase __unused *)database withRegisteredExtensions:(NSDictionary *)registeredExtensions
 {
 	// Only 1 relationship extension is supported at a time.
 	
 	__block BOOL supported = YES;
 	
-	[registeredExtensions enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+	[registeredExtensions enumerateKeysAndObjectsUsingBlock:^(id __unused key, id obj, BOOL *stop) {
 		
 		if ([obj isKindOfClass:[YapDatabaseRelationship class]])
 		{
@@ -112,7 +113,7 @@
 
 - (YapDatabaseExtensionConnection *)newConnection:(YapDatabaseConnection *)databaseConnection
 {
-	return [[YapDatabaseRelationshipConnection alloc] initWithRelationship:self databaseConnection:databaseConnection];
+	return [[YapDatabaseRelationshipConnection alloc] initWithParent:self databaseConnection:databaseConnection];
 }
 
 - (NSString *)tableName

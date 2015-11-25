@@ -14,11 +14,6 @@
 	NSUInteger hash;
 }
 
-YapCollectionKey* YapCollectionKeyCreate(NSString *collection, NSString *key)
-{
-	return [[YapCollectionKey alloc] initWithCollection:collection key:key];
-}
-
 @synthesize collection = collection;
 @synthesize key = key;
 
@@ -59,7 +54,7 @@ YapCollectionKey* YapCollectionKeyCreate(NSString *collection, NSString *key)
 	[coder encodeObject:key        forKey:@"key"];
 }
 
-- (id)copyWithZone:(NSZone *)zone
+- (id)copyWithZone:(NSZone __unused *)zone
 {
 	return self; // Immutable
 }

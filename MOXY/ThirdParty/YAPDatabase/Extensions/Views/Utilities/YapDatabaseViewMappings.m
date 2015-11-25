@@ -21,6 +21,7 @@
 #else
   static const int ydbLogLevel = YDB_LOG_LEVEL_WARN;
 #endif
+#pragma unused(ydbLogLevel)
 
 
 @implementation YapDatabaseViewMappings
@@ -113,7 +114,7 @@
 	snapshotOfLastUpdate = UINT64_MAX;
 }
 
-- (id)copyWithZone:(NSZone *)zone
+- (id)copyWithZone:(NSZone __unused *)zone
 {
 	YapDatabaseViewMappings *copy = [[YapDatabaseViewMappings alloc] init];
 	copy->allGroups = allGroups;
